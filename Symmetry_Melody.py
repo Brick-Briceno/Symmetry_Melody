@@ -48,7 +48,7 @@ def cambiar_color_e_indice(indice):
         seno = Thread(target=reproducir_seno, args=(
             volumen, 30/tempo, Tono_a_Hz(
             tono_y_corchea_desde_indice(indice)[0],
-            escala, tono_de_escala, octava_a_anadir)))
+            escalas_list[tipo_escala_n], tono_de_escala, octava_a_anadir)))
         seno.start()
 
 def pulso_boton(indice, lalala):
@@ -190,7 +190,7 @@ def mover_ritmo_derecha(lista_a_mover):
 """Reproductor de Melodias y Ritmos"""
 
 def teclado(grado):
-    seno = Thread(target=reproducir_seno, args=(volumen, .5, Tono_a_Hz(grado, escala, tono_de_escala, 1+octava_a_anadir)))
+    seno = Thread(target=reproducir_seno, args=(volumen, .5, Tono_a_Hz(grado, escalas_list[tipo_escala_n], tono_de_escala, 1+octava_a_anadir)))
     seno.start()
 
 def reproducir_seno(amplitud, duracion, frecuencia):
@@ -241,6 +241,10 @@ frigio = (1, 2, 4, 6, 8, 9, 11)
 locrio = (1, 2, 4, 6, 7, 9, 11)
 arabe = (1, 2, 5, 6, 8, 9, 12)
 
+escalas_list = [mayor, menor, menor_melodico,
+                lidio, mixolidio, dorico,
+                frigio, locrio, arabe]
+
 #tono es es valor del tono de 1 a 31
 #escala es la tupla con los tonos a sumar
 #octava es la octava a añadir
@@ -253,7 +257,7 @@ def Tono_a_Hz(tono, escala, tono_de_escala, octava):
         octava_anadir += 1
         grado -= 7
     else:
-        return (2**((((octava+octava_anadir)*12)+escala[grado-1]+tono_de_escala-58)/12)) * 440
+        return (2**((((octava+octava_anadir)*12)+escalas_list[tipo_escala_n][grado-1]+tono_de_escala-58)/12)) * 440
 
 """
 Tono escalas:
@@ -272,7 +276,7 @@ B = 11
 """
 
 activador = False
-escala = mayor
+tipo_escala_n = 0
 tono_de_escala = 5
 octava_a_anadir = 0
 #volumen maximo 1 y minimmo 0, 50% = 0.5
@@ -288,7 +292,7 @@ def reproductor():
             if Piano_Roll[posicion_lista(tono, corchea)]:
                 seno = Thread(target=reproducir_seno,
                             args=(volumen, 15/tempo,
-                            Tono_a_Hz(tono+1, escala,
+                            Tono_a_Hz(tono+1, escalas_list[tipo_escala_n],
                             tono_de_escala,
                             octava_a_anadir)))
                 seno.start()
@@ -321,15 +325,8 @@ def play_pause():
 
 claqueta_activada = False
 def claqueta():
-    #print("claqueta activada")
     global claqueta_activada
-    if claqueta_activada == False:
-        claqueta_activada = True
-        #claqueta.config(bg="snow", fg="gray10")
-    else:
-        #print("claqueta desactivada")
-        claqueta_activada = False
-        #claqueta.config(bg="gray10", fg="snow")
+    claqueta_activada = not claqueta_activada
 
 def fuerza_bruta(lista):
     print("La lista " + str(lista) + " se genera con:\n")
@@ -387,11 +384,46 @@ def tempo_calc():
     tempo = round(tempo)
     print(bpm_media)
     print(tempo)
+    actualizar_barra(None)
     if bpm < 45:
         LastPulseTime = 0
         bpm_media = []
 
 #Menú bar
+
+mensaje_brick = ""
+
+mensajes_ramdon_brick = ("Con la tecla ¨T¨ puedes marcar el tempo :)",
+                         "Con las teclas de numeros tienes samples de ritmos ;)",
+                         "Una vez me hice la paja con gasolina O:",
+                         "No es necesario que uses muchas notas en una canción, con 5 o hasta 3 está bien uwu",
+                         "Con la tecla ¨Y¨ activas una claqueta para llevar el tempo 0w0",
+                         "tienes un teclado con las teclas: ¨z¨ hasta ¨-¨",
+                         "No pienses en tu ex amigo! enfocate en la musica!!! B)",
+                         "Los momentos de ispiración llegan cuando estás en el baño, Brick Briceño - 2020",
+                         "Puedes usar tecnicas como la harmonia negativa o cambiar el ritmo de una melodia ;D",
+                         "Buscame en redes como @Brick_briceno ;)")
+
+mostrar_mensaje = True
+def random_brick():
+    n = len(mensajes_ramdon_brick)-1
+    while mostrar_mensaje:
+        time.sleep(random.randint(15, 16))
+        n_anterior = n
+        while n == n_anterior:
+            n = random.randint(0, len(mensajes_ramdon_brick)-1)
+        n_anterior = n
+
+        global mensaje_brick
+        mensaje_brick = "   -   Tip " + str(n+1) + ": " + mensajes_ramdon_brick[n]
+        actualizar_barra(None)
+        time.sleep(random.randint(10, 15))
+        mensaje_brick = ""
+        actualizar_barra(None)
+
+
+msj_br = Thread(target=random_brick)
+msj_br.start()
 
 def cafe():
     open("https://paypal.me/BrickUwu")
@@ -420,7 +452,7 @@ tono_r = [x for x in range(35)]
 tono_r.reverse()
 for tono in range(35):
     for corchea in range(64):
-        button_c1 = tk.Button(frame_melodia, command=lambda arg = posicion_lista(tono, corchea): cambiar_color_e_indice(arg), width=1, height=1, bg="black", font=("Helvetica", 5))
+        button_c1 = tk.Button(frame_melodia, command=lambda arg= posicion_lista(tono, corchea): cambiar_color_e_indice(arg), width=1, height=1, bg="black", font=("Helvetica", 5))
         if not (tono%7):
             button_c1.configure(bg=color_tonica)
         button_c1.grid(row=tono_r[tono], column=corchea, padx=0, pady=0)
@@ -431,8 +463,28 @@ del tono_r
 frame_controles_melodia = tk.Frame(root, bg="snow")
 frame_controles_melodia.place(x=5, y=430)
 
-boton_play_pause = tk.Button(frame_controles_melodia, text="Play", bg="black", fg="white", command=play_pause, width=1, height=1, font=("Helvetica", 18))
+def subir_bajar_tonalidad(subir):
+    global tono_de_escala
+    if subir:
+        tono_de_escala += 1
+        if tono_de_escala > 11:
+            tono_de_escala = 0
+    else:
+        tono_de_escala -= 1
+        if tono_de_escala < 0:
+            tono_de_escala = 11
+
+    actualizar_barra(None)
+    
+
+boton_play_pause = tk.Button(frame_controles_melodia, text="Play", bg="black", fg="white", command=play_pause, font=("Helvetica", 18))
 boton_play_pause.grid(row=0, column=0)
+
+boton_bajar_tonalidad = tk.Button(frame_controles_melodia, text="<T", bg="black", fg="white", command=lambda arg= 0: subir_bajar_tonalidad(arg), font=("Helvetica", 18))
+boton_bajar_tonalidad.grid(row=0, column=2)
+
+boton_suibir_tonalidad = tk.Button(frame_controles_melodia, text="T>", bg="black", fg="white", command=lambda arg= 1: subir_bajar_tonalidad(arg), font=("Helvetica", 18))
+boton_suibir_tonalidad.grid(row=0, column=1)
 
 
 #Menú bar
@@ -446,28 +498,61 @@ archivo_menu.add_separator()
 archivo_menu.add_command(label="Salir", command=root.quit)
 archivo_menu.config(bg="black", fg="snow")
 
-# Agregar el menú "Archivo" al menú bar
 menu_bar.add_cascade(label="Archivo", menu=archivo_menu)
 
-# Crear el menú "Ayuda"
+#Escalas Menú
+escalas_menu = tk.Menu(menu_bar, tearoff=0)
+
+"""Barra de Estado"""
+
+nombres_escalas = ["Mayor", "Menor", "Menor melodico",
+                    "Lidio", "Mixolidio", "Dorico", "Frigio",
+                    "Locrio", "Arabe"]
+
+def actualizar_barra(n_esc):
+    global tipo_escala_n
+    if n_esc != None:
+        tipo_escala_n = n_esc
+    statusbar_label.configure(text="Tempo: " +
+                              str(tempo) + "    -   Ecala: " +
+                              ["C", "C#", "D", "D#", "E", "F",
+                               "F#", "G", "G#", "A", "A#", "B"][tono_de_escala]+
+                               " " +
+                               nombres_escalas[tipo_escala_n] + mensaje_brick)
+
+statusbar = tk.Frame(root, bg="black", width=400, height=20)
+statusbar.pack(fill=tk.X)
+statusbar_label = tk.Label(statusbar, text="", bg="#262626", fg="white", width=400, anchor=tk.W, font=("Helvetica", 12))
+statusbar_label.pack(fill=tk.X)
+actualizar_barra(None)
+
+for x in range(len(nombres_escalas)):
+    escalas_menu.add_command(label=nombres_escalas[x], command=lambda arg=x: actualizar_barra(arg))
+
+escalas_menu.config(bg="black", fg="snow")
+
+menu_bar.add_cascade(label="Escalas", menu=escalas_menu)
+
 ayuda_menu = tk.Menu(menu_bar, tearoff=0)
 ayuda_menu.add_command(label="Ayuda")
 ayuda_menu.add_command(label="Dame un Cafe <3", command=cafe)
 ayuda_menu.config(bg="black", fg="snow")
 
-# Agregar el menú "Ayuda" al menú bar
 menu_bar.add_cascade(label="Ayuda", menu=ayuda_menu)
 
-# Asignar el menú bar a la ventana
+#Asignar el menú bar a la ventana
 root.config(menu=menu_bar)
+
 
 """Atajos de Teclado"""
 
 #controles basicos
 root.bind("<space>", lambda event: play_pause())
-root.bind("0", lambda event: tempo_calc())
+root.bind("t", lambda event: tempo_calc())
+root.bind("T", lambda event: tempo_calc())
 root.bind("y", lambda event: claqueta())
-root.bind("Y", lambda event: claqueta())
+root.bind("}", lambda event: subir_bajar_tonalidad(0))
+root.bind("{", lambda event: subir_bajar_tonalidad(1))
 
 #Ritmos samples
 
@@ -500,4 +585,6 @@ root.bind("-", lambda event: teclado(10))
 inicio.play()
 root.mainloop()
 activador = False
+mostrar_mensaje = False
+msj_br.join()
 final.play()
