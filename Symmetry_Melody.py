@@ -11,15 +11,16 @@ from multiprocessing import Process
 import random
 import numpy as np
 import time
-#from pygame import mixer
+from pygame import mixer
 import pyaudio
 from webbrowser import open
 
 
-"""Codigo area de editor de melodias"""
+"""Codigo de editor de melodias"""
 
 Piano_Roll = [0 for x in range(64*35)]
-color_boton = "#00ca65"
+color_boton = "#00CA65"
+color_boton_pulso = "#FC19A5"
 color_tonica = "#171717"
 
 def posicion_lista(tono, corchea): #esto calcula el indice de la lista mediante sus 2 argumetos
@@ -33,36 +34,51 @@ def tono_y_corchea_desde_indice(indice):
 
 #lista con los 64*35 botones de las partituras
 buttons_c1 = [0 for x in range(64*35)]
-buttons_c2 = [0 for x in range(64*35)]
-buttons_c3 = [0 for x in range(64*35)]
-buttons_c4 = [0 for x in range(64*35)]
-buttons_c5 = [0 for x in range(64*35)]
-buttons_c6 = [0 for x in range(64*35)]
-buttons_c7 = [0 for x in range(64*35)]
-buttons_c8 = [0 for x in range(64*35)]
 
-boton_compas = [buttons_c1, buttons_c2, buttons_c3,
-                buttons_c4, buttons_c5, buttons_c6,
-                buttons_c7, buttons_c8]
-
-def cambiar_color_e_indice(indice, compas):
+def cambiar_color_e_indice(indice):
     if Piano_Roll[indice]:
+        Piano_Roll[indice] = 0
         if not ((34 - (indice // 64))%7):
-            boton_compas[compas-1][indice].configure(bg=color_tonica)
-            Piano_Roll[indice] = 0
-
+            buttons_c1[indice].configure(bg=color_tonica)
         else:
-            boton_compas[compas-1][indice].configure(bg="black")
-            Piano_Roll[indice] = 0
+            buttons_c1[indice].configure(bg="black")
     else:
-        boton_compas[compas-1][indice].configure(bg=color_boton)
         Piano_Roll[indice] = 1
-        print(tono_y_corchea_desde_indice(indice)[0])
-        seno = Thread(target=reproducir_seno, args=(volumen, 15/tempo, Tono_a_Hz(tono_y_corchea_desde_indice(indice)[0], escala, tono_de_escala, octava_a_anadir)))
+        buttons_c1[indice].configure(bg=color_boton)
+        seno = Thread(target=reproducir_seno, args=(
+            volumen, 30/tempo, Tono_a_Hz(
+            tono_y_corchea_desde_indice(indice)[0],
+            escala, tono_de_escala, octava_a_anadir)))
         seno.start()
 
+def pulso_boton(indice, lalala):
+    buttons_c1[indice].configure(bg=color_boton_pulso)
+    time.sleep(55/tempo)
+    buttons_c1[indice].configure(bg=color_boton)
 
 """Parte de generación de Ritmos"""
+
+#Configuración de Sonido
+
+#paramrtros aplican a mas partes del programa a parte de esta uwu
+frecuencia_muestreo = 44100
+buffer = 1024
+
+mixer.pre_init(frecuencia_muestreo,-16, 2, buffer)
+mixer.init()
+
+sample1 = mixer.Sound("Sonidos/Kick_defecto.wav")
+sample2 = mixer.Sound("Sonidos/Clap_defecto.wav")
+sample3 = mixer.Sound("Sonidos/Snare_defecto.wav")
+sample4 = mixer.Sound("Sonidos/Hat_defecto.wav")
+
+claqueta_fuerte = mixer.Sound("Sonidos/golpe_fuerte.wav")
+claqueta_suave = mixer.Sound("Sonidos/golpe_suave.wav")
+
+#Sonidos de inicio y final:
+inicio = mixer.Sound("Sonidos/inicio.wav")
+final = mixer.Sound("Sonidos/final.wav")
+
 
 def GeneradorBrick_v2(a, b, c):
     if a > b:
@@ -150,11 +166,14 @@ def convertir_valores_entrada(dato):
 		b = int(b)
 		return a,b # los datos te los devuelve en forma de tupla :)
 
-def invertir_lista(lista):
-    lista_final = []
-    for x in range(len(lista)):
-        lista_final.append(int(not lista[x]))
-    return lista_final
+def invertir(r):
+    for x in range(len(r)):
+        r[x] = int(not r[x])
+    return r
+
+def revertir(r):
+    r.reverse()
+    return r
 
 def mover_ritmo_izquierda(lista_a_mover):
     lista_a_mover.append(lista_a_mover[0])
@@ -171,10 +190,8 @@ def mover_ritmo_derecha(lista_a_mover):
 """Reproductor de Melodias y Ritmos"""
 
 def teclado(grado):
-    seno = Thread(target=reproducir_seno, args=(volumen, .75, Tono_a_Hz(grado, escala, tono_de_escala, 1+octava_a_anadir)))
+    seno = Thread(target=reproducir_seno, args=(volumen, .5, Tono_a_Hz(grado, escala, tono_de_escala, 1+octava_a_anadir)))
     seno.start()
-
-frecuencia_muestreo = 44100
 
 def reproducir_seno(amplitud, duracion, frecuencia):
     # Generamos la onda senoidal
@@ -206,6 +223,13 @@ def notaSTR_a_frecuencia(nota):
         return notas_octava_0.get(nota[0])* pow(2, int(nota[1])-1)*2
 
 tempo = 128
+
+#las escalas o mejor llamarlos modos
+#se construyen en tuplas poniendo 7 valores
+#poniendo su pocisión cromatica
+
+#vease que las variables mayor y menor
+#son identicas salvo el 3er, 6to y 7mo grado
 
 mayor = (1, 3, 5, 6, 8, 10, 12)
 menor = (1, 3, 4, 6, 8, 9, 11)
@@ -259,16 +283,31 @@ def reproductor():
     global activador
     activador = True
     while activador:
+        #Melodia
         for tono in range(35):
             if Piano_Roll[posicion_lista(tono, corchea)]:
-                print(tono)
-                seno = Thread(target=reproducir_seno, args=(volumen, 15/tempo, Tono_a_Hz(tono+1, escala, tono_de_escala, octava_a_anadir)))
+                seno = Thread(target=reproducir_seno,
+                            args=(volumen, 15/tempo,
+                            Tono_a_Hz(tono+1, escala,
+                            tono_de_escala,
+                            octava_a_anadir)))
                 seno.start()
+                #pulso del boton
+                pulso_f = Thread(target=pulso_boton, args=(posicion_lista(tono, corchea), None))
+                pulso_f.start()
+
+        #Claqueta
+        if claqueta_activada and (corchea in [x*4 for x in range(16)]):
+            claqueta_suave.play()
+        elif claqueta_activada and (corchea in [x*16 for x in range(4)]):
+            claqueta_fuerte.play()
 
         corchea += 1
         if corchea == 64:
             corchea = 0
         time.sleep(15/tempo)
+
+
 
 def play_pause():
     global activador
@@ -280,16 +319,17 @@ def play_pause():
         re.start()
         boton_play_pause.configure(bg="white", fg="black")
 
+claqueta_activada = False
 def claqueta():
     #print("claqueta activada")
     global claqueta_activada
     if claqueta_activada == False:
         claqueta_activada = True
-        claqueta.config(bg="snow", fg="gray10")
+        #claqueta.config(bg="snow", fg="gray10")
     else:
         #print("claqueta desactivada")
         claqueta_activada = False
-        claqueta.config(bg="gray10", fg="snow")
+        #claqueta.config(bg="gray10", fg="snow")
 
 def fuerza_bruta(lista):
     print("La lista " + str(lista) + " se genera con:\n")
@@ -325,34 +365,31 @@ def fuerza_bruta(lista):
 
 #Funciones de Botones
 
-asignando_tempo = False
-primer_pulso = True
-tomaM = []
-contador = 0
-
-
 def redondear_tempo():
     global Tempo
-    Tempo = round(Tempo)
+    tempo = round(tempo)
     #TempoD.set(Tempo)
 
 LastPulseTime = 0
 bpm_media = []
-def tempo_calc(event):
-     global LastPulseTime
-     CurrentTime = time.time() # Obtiene el tiempo
-     if LastPulseTime == 0:
-          LastPulseTime = CurrentTime 
-          
- # Aquí se calcula el valor BPM
-     bpm = 60/(CurrentTime-LastPulseTime)
-     global bpm_media
-     bpm_media.append(bpm)
-     LastPulseTime = CurrentTime
-     if bpm < 45:
-          bpm_media = []
-     print(sum(bpm_media)/len(bpm_media))
-
+def tempo_calc():
+    global LastPulseTime
+    global tempo
+    global bpm_media
+    CurrentTime = time.time()
+    if LastPulseTime == 0:
+          LastPulseTime = CurrentTime
+    #Aquí se calcula el valor BPM
+    bpm = 60/(CurrentTime-LastPulseTime)
+    bpm_media.append(bpm)
+    LastPulseTime = CurrentTime
+    tempo = sum(bpm_media)/len(bpm_media)
+    tempo = round(tempo)
+    print(bpm_media)
+    print(tempo)
+    if bpm < 45:
+        LastPulseTime = 0
+        bpm_media = []
 
 #Menú bar
 
@@ -367,67 +404,39 @@ def cafe():
 root = tk.Tk()
 root.geometry("1024x560") # Establecer el tamaño de la ventana
 root.title("Symmetry Melody v1.0")
-#root.iconbitmap("icon.ico")
-
-# Desactivar la capacidad de redimensionar la ventana
-root.resizable(False, False)
+root.iconbitmap("icon.ico")
+root.resizable(0, 0)
 
 # Crear un ttk.Style para personalizar la apariencia de los widgets
 style = ttk.Style()
-
-# Cambiar el tema a uno oscuro
 style.theme_use("alt")
 
-# Cambiar los colores de fondo y de texto del Notebook y sus pestañas
-style.configure('TNotebook', background="black", foreground="black")
-style.configure('TNotebook.Tab', background="black", foreground="snow")
+"""Ventana 1: editor de melodias"""
 
-# Cambiar el color de fondo de las pestañas
-style.map('TNotebook.Tab', background=[('', '#000')])
-
-# Crear el widget Notebook
-notebook = ttk.Notebook(root)
-
-#Pestaña #2 Compás #1
-
-tab_c1 = ttk.Frame(notebook)
-
-notebook.add(tab_c1, text="Compás #1")
-frame_melodia = tk.Frame(tab_c1, bg="black")
+frame_melodia = tk.Frame(root, bg="black")
 frame_melodia.pack(expand=True, fill="both")
 
 tono_r = [x for x in range(35)]
 tono_r.reverse()
-
 for tono in range(35):
     for corchea in range(64):
-        button_c1 = tk.Button(frame_melodia, command=lambda arg = posicion_lista(tono, corchea): cambiar_color_e_indice(arg, 1), width=1, height=1, bg="black", font=("Helvetica", 5))
-
+        button_c1 = tk.Button(frame_melodia, command=lambda arg = posicion_lista(tono, corchea): cambiar_color_e_indice(arg), width=1, height=1, bg="black", font=("Helvetica", 5))
         if not (tono%7):
             button_c1.configure(bg=color_tonica)
-
         button_c1.grid(row=tono_r[tono], column=corchea, padx=0, pady=0)
         buttons_c1[posicion_lista(tono, corchea)] = button_c1
+del tono_r
 
-boton_play_pause = tk.Button(frame_melodia, text="Play", bg="black", fg="white", command=play_pause, width=1, height=1, font=("Helvetica", 18))
-boton_play_pause.grid(row=36, column=65, padx=0, pady=0)
+#Controles Melodia
+frame_controles_melodia = tk.Frame(root, bg="snow")
+frame_controles_melodia.place(x=5, y=430)
 
+boton_play_pause = tk.Button(frame_controles_melodia, text="Play", bg="black", fg="white", command=play_pause, width=1, height=1, font=("Helvetica", 18))
+boton_play_pause.grid(row=0, column=0)
 
-#Pestaña #3 Compás #2
-#Pestaña #4 Compás #3
-#Pestaña #5 Compás #4
-#Pestaña #6 Compás #5
-#Pestaña #7 Compás #6
-#Pestaña #8 Compás #7
-#Pestaña #9 Compás #8
-#Pestaña #10 Letra
-
-
-notebook.pack(fill='both', expand=True) #expande las pestañas
 
 #Menú bar
 menu_bar = tk.Menu(root)
-menu_bar.config(bg="black", fg="snow")
 
 # Crear el menú "Archivo"
 archivo_menu = tk.Menu(menu_bar, tearoff=0)
@@ -452,26 +461,23 @@ menu_bar.add_cascade(label="Ayuda", menu=ayuda_menu)
 # Asignar el menú bar a la ventana
 root.config(menu=menu_bar)
 
-#Atajos de Teclado
+"""Atajos de Teclado"""
 
-"""
-1. <Enter>
-2. <space>
-3. <Tab>
-4. <Shift>
-5. <Control>
-6. <Caps Lock>
-7. <Alt>
-8. <F1 - F12>
-9. <Arrow Keys>
-10. <Insert>
-11. <Delete>
-12. <Home>
-13. <End>
-14. <Page Up>
-15. <Page Down>
-"""
+#controles basicos
+root.bind("<space>", lambda event: play_pause())
+root.bind("0", lambda event: tempo_calc())
+root.bind("y", lambda event: claqueta())
+root.bind("Y", lambda event: claqueta())
 
+#Ritmos samples
+
+root.bind("1", lambda event: sample1.play())
+root.bind("2", lambda event: sample2.play())
+root.bind("3", lambda event: sample3.play())
+root.bind("4", lambda event: sample4.play())
+
+
+#teclado
 root.bind("Z", lambda event: teclado(1))
 root.bind("z", lambda event: teclado(1))
 root.bind("X", lambda event: teclado(2))
@@ -487,12 +493,11 @@ root.bind("n", lambda event: teclado(6))
 root.bind("M", lambda event: teclado(7))
 root.bind("m", lambda event: teclado(7))
 root.bind(",", lambda event: teclado(8))
+root.bind(".", lambda event: teclado(9))
+root.bind("-", lambda event: teclado(10))
 
-root.bind("<space>", lambda event: play_pause())
 
-
-# Mostrar el notebook
-notebook.pack()
+inicio.play()
 root.mainloop()
-
 activador = False
+final.play()
