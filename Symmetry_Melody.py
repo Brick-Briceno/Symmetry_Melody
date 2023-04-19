@@ -408,7 +408,7 @@ mostrar_mensaje = True
 def random_brick():
     n = len(mensajes_ramdon_brick)-1
     while mostrar_mensaje:
-        time.sleep(random.randint(15, 16))
+        time.sleep(random.randint(20, 130))
         n_anterior = n
         while n == n_anterior:
             n = random.randint(0, len(mensajes_ramdon_brick)-1)
