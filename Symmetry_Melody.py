@@ -6,15 +6,105 @@ by @Brick_Briceno 2023
 #Librerias uwu
 import tkinter as tk
 from tkinter import ttk
+from tkinter import filedialog as FileDialog
 from threading import Thread
-from multiprocessing import Process
 import random
 import numpy as np
 import time
 from pygame import mixer
 import pyaudio
-from webbrowser import open
+from webbrowser import open as open_link
+from sys import argv as desde_sys
 
+"Sistema de Guardado"
+
+#si desde windows abres el proyecto
+#con el programa sale esta ruta
+try:
+    ruta = desde_sys[1]
+except IndexError:
+    ruta = None
+
+def hex_a_bi(hexad):
+    return "{0:02240b}".format(int(hexad, 16))
+
+def bi_a_hex(bi):
+    return "{0:0>1X}".format(int(bi, 2))
+
+def list_a_str_bi(lista):
+    salida = ""
+    for x in lista:
+        salida += str(x)
+    return salida
+
+def str_bi_a_list(bi):
+    salida = []
+    for x in bi:
+        salida.append(int(x))
+    return salida
+
+def actualizar_botones():
+    for x in range(len(Piano_Roll)):
+        if not Piano_Roll[x]:    
+            if not ((34 - (x // 64))%7):
+                buttons_c1[x].configure(bg=color_tonica)
+            else:
+                buttons_c1[x].configure(bg="black")
+        else:
+            buttons_c1[x].configure(bg=color_boton)
+
+def abrir(externo):
+    if externo == False:
+        global ruta
+        ruta = FileDialog.askopenfilename(
+        initialdir='.', 
+        filetypes=(("Simmetry Melody Proyect", "*.smp"),),
+        title="Abrir un Proyecto :D")
+    global tempo
+    global tono_de_escala
+    global tipo_escala_n
+    global octava_a_anadir
+    global Piano_Roll
+    cosas = ["", "",
+             "", "", ""]
+    archivo = open(ruta)
+    n = 0
+    for x in archivo.read():
+        if x != ",":
+            cosas[n] += x
+        else:
+            n += 1
+    archivo.close()
+    tempo = int(cosas[0])
+    tono_de_escala = int(cosas[1])
+    tipo_escala_n = int(cosas[2])
+    octava_a_anadir = int(cosas[3])
+    actualizar_barra(None)
+    Piano_Roll = str_bi_a_list(hex_a_bi(cosas[4]))
+    actualizar_botones()
+
+
+def guardar():
+    if ruta != None:
+        fichero = open(ruta, 'w+')
+        fichero.write(str(tempo) + "," + str(tono_de_escala)
+                      + "," + str(tipo_escala_n) + "," +
+                      str(octava_a_anadir)  + "," +
+                      bi_a_hex(list_a_str_bi(Piano_Roll)))
+        fichero.close()
+    else:
+        guardar_como()
+
+def guardar_como():
+    global ruta
+    fichero = tk.filedialog.asksaveasfile(title="Guardar Proyecto", 
+        mode="w", defaultextension=".smp")
+    fichero = open(ruta, 'w+')
+    fichero.write(str(tempo) + "," + str(tono_de_escala)
+                      + "," + str(tipo_escala_n) + "," +
+                      str(octava_a_anadir)  + "," +
+                      bi_a_hex(list_a_str_bi(Piano_Roll)))
+    fichero.close()
 
 """Codigo de editor de melodias"""
 
@@ -25,7 +115,6 @@ color_tonica = "#171717"
 
 def posicion_lista(tono, corchea): #esto calcula el indice de la lista mediante sus 2 argumetos
     return ((34-tono)*64)+(corchea)
-
 
 def tono_y_corchea_desde_indice(indice):
     corchea = indice % 64 + 1
@@ -426,7 +515,7 @@ msj_br = Thread(target=random_brick)
 msj_br.start()
 
 def cafe():
-    open("https://paypal.me/BrickUwu")
+    open_link("https://paypal.me/BrickUwu")
     """Esto me ayuda a seguir creando
     Sofware Libre para Todos :D
     """
@@ -475,7 +564,17 @@ def subir_bajar_tonalidad(subir):
             tono_de_escala = 11
 
     actualizar_barra(None)
-    
+
+
+def subir_bajar_octava(subir):
+    global octava_a_anadir
+    if subir:
+        octava_a_anadir += 1
+    else:
+        octava_a_anadir -= 1
+
+    actualizar_barra(None)
+
 
 boton_play_pause = tk.Button(frame_controles_melodia, text="Play", bg="black", fg="white", command=play_pause, font=("Helvetica", 18))
 boton_play_pause.grid(row=0, column=0)
@@ -486,14 +585,21 @@ boton_bajar_tonalidad.grid(row=0, column=2)
 boton_suibir_tonalidad = tk.Button(frame_controles_melodia, text="T>", bg="black", fg="white", command=lambda arg= 1: subir_bajar_tonalidad(arg), font=("Helvetica", 18))
 boton_suibir_tonalidad.grid(row=0, column=1)
 
+boton_bajar_octava = tk.Button(frame_controles_melodia, text="<O", bg="black", fg="white", command=lambda arg= 0: subir_bajar_octava(arg), font=("Helvetica", 18))
+boton_bajar_octava.grid(row=0, column=3)
+
+boton_suibir_octava = tk.Button(frame_controles_melodia, text="O>", bg="black", fg="white", command=lambda arg= 1: subir_bajar_octava(arg), font=("Helvetica", 18))
+boton_suibir_octava.grid(row=0, column=4)
+
 
 #Menú bar
 menu_bar = tk.Menu(root)
 
 # Crear el menú "Archivo"
 archivo_menu = tk.Menu(menu_bar, tearoff=0)
-archivo_menu.add_command(label="Abrir")
-archivo_menu.add_command(label="Guardar")
+archivo_menu.add_command(label="Abrir", command=lambda arg=False: abrir(arg))
+archivo_menu.add_command(label="Guardar", command=guardar)
+archivo_menu.add_command(label="Guardar como...", command=guardar_como)
 archivo_menu.add_separator()
 archivo_menu.add_command(label="Salir", command=root.quit)
 archivo_menu.config(bg="black", fg="snow")
@@ -581,6 +687,9 @@ root.bind(",", lambda event: teclado(8))
 root.bind(".", lambda event: teclado(9))
 root.bind("-", lambda event: teclado(10))
 
+
+if ruta != None:
+    abrir(True)
 
 inicio.play()
 root.mainloop()
