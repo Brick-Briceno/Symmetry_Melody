@@ -97,8 +97,11 @@ def guardar():
 
 def guardar_como():
     global ruta
-    fichero = tk.filedialog.asksaveasfile(title="Guardar Proyecto", 
+    fichero = FileDialog.asksaveasfile(title="Guardar Proyecto", 
         mode="w", defaultextension=".smp")
+    if fichero == None:
+        return
+    ruta = fichero.name
     fichero = open(ruta, 'w+')
     fichero.write(str(tempo) + "," + str(tono_de_escala)
                       + "," + str(tipo_escala_n) + "," +
@@ -111,7 +114,7 @@ def guardar_como():
 Piano_Roll = [0 for x in range(64*35)]
 color_boton = "#00CA65"
 color_boton_pulso = "#FC19A5"
-color_tonica = "#171717"
+color_tonica = "#1A1A1A"
 
 def posicion_lista(tono, corchea): #esto calcula el indice de la lista mediante sus 2 argumetos
     return ((34-tono)*64)+(corchea)
@@ -145,6 +148,30 @@ def pulso_boton(indice, lalala):
     time.sleep(55/tempo)
     buttons_c1[indice].configure(bg=color_boton)
 
+def harmonia_negativa_diatonica():
+   global Piano_Roll
+   salida = [0 for x in range(35*64)]
+   for x in range(35*64):
+       if Piano_Roll[x]:
+           corchea = tono_y_corchea_desde_indice(x)[1]
+           tono = tono_y_corchea_desde_indice(x)[0]
+           nuevo_tono = tono-(tono*2)+28
+           salida[posicion_lista(nuevo_tono+5, corchea-1)] = 1
+   Piano_Roll = salida
+   actualizar_botones()
+
+def subir_bajar(accion):
+   global Piano_Roll
+   salida = [0 for x in range(35*64)]
+   for x in range(35*64):
+       if Piano_Roll[x]:
+           corchea = tono_y_corchea_desde_indice(x)[1]
+           tono = tono_y_corchea_desde_indice(x)[0]
+           nuevo_tono = tono+accion
+           salida[posicion_lista(nuevo_tono+1, corchea-1)] = 1
+   Piano_Roll = salida
+   actualizar_botones()
+
 """Parte de generación de Ritmos"""
 
 #Configuración de Sonido
@@ -168,6 +195,7 @@ claqueta_suave = mixer.Sound("Sonidos/golpe_suave.wav")
 inicio = mixer.Sound("Sonidos/inicio.wav")
 final = mixer.Sound("Sonidos/final.wav")
 
+ritmos = [sample1, sample2, sample3, sample4]
 
 def GeneradorBrick_v2(a, b, c):
     if a > b:
@@ -311,8 +339,6 @@ def notaSTR_a_frecuencia(nota):
     else:
         return notas_octava_0.get(nota[0])* pow(2, int(nota[1])-1)*2
 
-tempo = 128
-
 #las escalas o mejor llamarlos modos
 #se construyen en tuplas poniendo 7 valores
 #poniendo su pocisión cromatica
@@ -364,12 +390,29 @@ A#/Bb = 10
 B = 11
 """
 
+tempo = 128
 activador = False
 tipo_escala_n = 0
 tono_de_escala = 5
 octava_a_anadir = 0
 #volumen maximo 1 y minimmo 0, 50% = 0.5
 volumen = 1
+
+
+def nuevo_p():
+    global tipo_escala_n
+    global tono_de_escala
+    global octava_a_anadir
+    global Piano_Roll
+    global ruta
+    Piano_Roll = [0 for x in range(35*64)]
+    tipo_escala_n = 0
+    tono_de_escala = 5
+    octava_a_anadir = 0
+    ruta = None
+    actualizar_barra(None)
+    actualizar_botones()
+
 
 def reproductor():
     corchea = 0
@@ -399,7 +442,6 @@ def reproductor():
         if corchea == 64:
             corchea = 0
         time.sleep(15/tempo)
-
 
 
 def play_pause():
@@ -491,7 +533,8 @@ mensajes_ramdon_brick = ("Con la tecla ¨T¨ puedes marcar el tempo :)",
                          "No pienses en tu ex amigo! enfocate en la musica!!! B)",
                          "Los momentos de ispiración llegan cuando estás en el baño, Brick Briceño - 2020",
                          "Puedes usar tecnicas como la harmonia negativa o cambiar el ritmo de una melodia ;D",
-                         "Buscame en redes como @Brick_briceno ;)")
+                         "Buscame en redes como @Brick_briceno ;)",
+                         "Aveces un pequeño detalle le da vida a Toda la canción...")
 
 mostrar_mensaje = True
 def random_brick():
@@ -537,15 +580,33 @@ style.theme_use("alt")
 frame_melodia = tk.Frame(root, bg="black")
 frame_melodia.pack(expand=True, fill="both")
 
+corchea_s = []
+for x in range(64+16):
+    if not x%5 == 0:
+        corchea_s.append(x)
+
 tono_r = [x for x in range(35)]
 tono_r.reverse()
+separador = 0
 for tono in range(35):
     for corchea in range(64):
-        button_c1 = tk.Button(frame_melodia, command=lambda arg= posicion_lista(tono, corchea): cambiar_color_e_indice(arg), width=1, height=1, bg="black", font=("Helvetica", 5))
+        button_c1 = tk.Button(frame_melodia, command=lambda arg=posicion_lista(tono, corchea): cambiar_color_e_indice(arg), width=1, height=1, bg="black", font=("Helvetica", 5))
         if not (tono%7):
             button_c1.configure(bg=color_tonica)
-        button_c1.grid(row=tono_r[tono], column=corchea, padx=0, pady=0)
+
+        button_c1.grid(row=tono_r[tono], column=corchea_s[corchea], padx=0, pady=0)
         buttons_c1[posicion_lista(tono, corchea)] = button_c1
+
+for x in range(64+16):
+    if not x%5 == 0:
+        corchea_s.append(x)
+
+for tono in range(35):
+    for corchea in range(64+16):
+        if corchea%5 == 0 and corchea:
+            separador_label = tk.Label(frame_melodia, text="", width=1, height=1, bg=color_tonica, font=("Micro", 1))
+            separador_label.grid(row=tono_r[tono], column=corchea)
+
 del tono_r
 
 #Controles Melodia
@@ -591,12 +652,21 @@ boton_bajar_octava.grid(row=0, column=3)
 boton_suibir_octava = tk.Button(frame_controles_melodia, text="O>", bg="black", fg="white", command=lambda arg= 1: subir_bajar_octava(arg), font=("Helvetica", 18))
 boton_suibir_octava.grid(row=0, column=4)
 
+boton_harmonia_negativa_diatonica = tk.Button(frame_controles_melodia, text="Hrm N", bg="#170017", fg="white", command=harmonia_negativa_diatonica, font=("Helvetica", 18))
+boton_harmonia_negativa_diatonica.grid(row=0, column=5)
+
+boton_bajar = tk.Button(frame_controles_melodia, text="<", bg="#170017", fg="white", command=lambda arg= 32: subir_bajar(arg), font=("Helvetica", 18))
+boton_bajar.grid(row=0, column=6)
+ 
+boton_subir = tk.Button(frame_controles_melodia, text=">", bg="#170017", fg="white", command=lambda arg= -1: subir_bajar(arg), font=("Helvetica", 18))
+boton_subir.grid(row=0, column=7)
 
 #Menú bar
 menu_bar = tk.Menu(root)
 
 # Crear el menú "Archivo"
 archivo_menu = tk.Menu(menu_bar, tearoff=0)
+archivo_menu.add_command(label="Nuevo", command=nuevo_p)
 archivo_menu.add_command(label="Abrir", command=lambda arg=False: abrir(arg))
 archivo_menu.add_command(label="Guardar", command=guardar)
 archivo_menu.add_command(label="Guardar como...", command=guardar_como)
@@ -657,8 +727,15 @@ root.bind("<space>", lambda event: play_pause())
 root.bind("t", lambda event: tempo_calc())
 root.bind("T", lambda event: tempo_calc())
 root.bind("y", lambda event: claqueta())
-root.bind("}", lambda event: subir_bajar_tonalidad(0))
-root.bind("{", lambda event: subir_bajar_tonalidad(1))
+root.bind("}", lambda event: subir_bajar_tonalidad(1))
+root.bind("{", lambda event: subir_bajar_tonalidad(0))
+root.bind("<Control-s>", lambda event: guardar())
+root.bind("<Control-S>", lambda event: guardar())
+root.bind("<Control-n>", lambda event: nuevo_p())
+root.bind("<Control-N>", lambda event: nuevo_p())
+root.bind("<Control-o>", lambda event: abrir(False))
+root.bind("<Control-O>", lambda event: abrir(False))
+
 
 #Ritmos samples
 
@@ -690,6 +767,7 @@ root.bind("-", lambda event: teclado(10))
 
 if ruta != None:
     abrir(True)
+
 
 inicio.play()
 root.mainloop()
