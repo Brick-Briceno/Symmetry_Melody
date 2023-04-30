@@ -13,17 +13,14 @@ import numpy as np
 import time
 from pygame import mixer
 import pyaudio
+import psutil
+import midiutil
 from webbrowser import open as open_link
 from sys import argv as desde_sys
 
-"Sistema de Guardado"
+titulo_ventana = "Symmetry Melody v1.0"
 
-#si desde windows abres el proyecto
-#con el programa sale esta ruta
-try:
-    ruta = desde_sys[1]
-except IndexError:
-    ruta = None
+"Sistema de Guardado"
 
 def hex_a_bi(hexad):
     return "{0:02240b}".format(int(hexad, 16))
@@ -100,7 +97,7 @@ def guardar_como():
     fichero = FileDialog.asksaveasfile(title="Guardar Proyecto", 
         mode="w", defaultextension=".smp")
     if fichero == None:
-        return
+        return "sexo"
     ruta = fichero.name
     fichero = open(ruta, 'w+')
     fichero.write(str(tempo) + "," + str(tono_de_escala)
@@ -108,6 +105,34 @@ def guardar_como():
                       str(octava_a_anadir)  + "," +
                       bi_a_hex(list_a_str_bi(Piano_Roll)))
     fichero.close()
+    root.title(titulo_ventana + fichero.name)
+
+def mid_export():
+    fichero = FileDialog.asksaveasfile(title="Guardar Proyecto", 
+        mode="w", defaultextension=".mid")
+    if fichero == None:
+        return
+
+    time = 0# Tiempo inicial en ticks
+    mf = midiutil.MIDIFile(1)   # Un solo track
+    mf.addTempo(0, time, tempo)
+    for corchea in range(64):
+        for tono in range(35):
+            if Piano_Roll[posicion_lista(tono, corchea)]:
+                octava_anadir = 2
+                grado = tono + 1
+                while grado > 7:
+                    octava_anadir += 1
+                    grado -= 7
+                else:
+                    note = ((octava_anadir)*12)+escalas_list[tipo_escala_n][grado-1]+tono_de_escala-13
+                #print(0, 0, note, corchea, 1, 100)
+                mf.addNote(0, 0, note, corchea/4, .25, 100)
+    
+    # Exportación del archivo MIDI
+    with open(fichero.name, "wb") as output_file:
+        mf.writeFile(output_file)
+
 
 """Codigo de editor de melodias"""
 
@@ -155,7 +180,7 @@ def harmonia_negativa_diatonica():
        if Piano_Roll[x]:
            corchea = tono_y_corchea_desde_indice(x)[1]
            tono = tono_y_corchea_desde_indice(x)[0]
-           nuevo_tono = tono-(tono*2)+28
+           nuevo_tono = tono-(tono*2)+28+(7*3)
            salida[posicion_lista(nuevo_tono+5, corchea-1)] = 1
    Piano_Roll = salida
    actualizar_botones()
@@ -412,6 +437,7 @@ def nuevo_p():
     ruta = None
     actualizar_barra(None)
     actualizar_botones()
+    root.title(titulo_ventana)
 
 
 def reproductor():
@@ -422,6 +448,7 @@ def reproductor():
         #Melodia
         for tono in range(35):
             if Piano_Roll[posicion_lista(tono, corchea)]:
+                print(tono)
                 seno = Thread(target=reproducir_seno,
                             args=(volumen, 15/tempo,
                             Tono_a_Hz(tono+1, escalas_list[tipo_escala_n],
@@ -553,9 +580,21 @@ def random_brick():
         mensaje_brick = ""
         actualizar_barra(None)
 
+var_cpu = True
+cpu_str = ""
+def cpu():
+    global cpu_str
+    sepd = ""
+    while var_cpu:
+        cpu_porc = psutil.cpu_percent()
+        if cpu_porc < 10:
+            sepd = "  "
+        else:
+            sepd = ""
+        cpu_str = "CPU: " + str(cpu_porc) + "% " + sepd + "▄"*int(cpu_porc/10) + "_"*(10-int(cpu_porc/10))
+        actualizar_barra(None)
+        time.sleep(1)
 
-msj_br = Thread(target=random_brick)
-msj_br.start()
 
 def cafe():
     open_link("https://paypal.me/BrickUwu")
@@ -567,7 +606,7 @@ def cafe():
 
 root = tk.Tk()
 root.geometry("1024x560") # Establecer el tamaño de la ventana
-root.title("Symmetry Melody v1.0")
+root.title(titulo_ventana)
 root.iconbitmap("icon.ico")
 root.resizable(0, 0)
 
@@ -670,6 +709,7 @@ archivo_menu.add_command(label="Nuevo", command=nuevo_p)
 archivo_menu.add_command(label="Abrir", command=lambda arg=False: abrir(arg))
 archivo_menu.add_command(label="Guardar", command=guardar)
 archivo_menu.add_command(label="Guardar como...", command=guardar_como)
+archivo_menu.add_command(label="Exportar .mid", command=mid_export)
 archivo_menu.add_separator()
 archivo_menu.add_command(label="Salir", command=root.quit)
 archivo_menu.config(bg="black", fg="snow")
@@ -694,7 +734,8 @@ def actualizar_barra(n_esc):
                               ["C", "C#", "D", "D#", "E", "F",
                                "F#", "G", "G#", "A", "A#", "B"][tono_de_escala]+
                                " " +
-                               nombres_escalas[tipo_escala_n] + mensaje_brick)
+                               nombres_escalas[tipo_escala_n] + mensaje_brick +
+                               "    -   " + cpu_str)
 
 statusbar = tk.Frame(root, bg="black", width=400, height=20)
 statusbar.pack(fill=tk.X)
@@ -735,6 +776,8 @@ root.bind("<Control-n>", lambda event: nuevo_p())
 root.bind("<Control-N>", lambda event: nuevo_p())
 root.bind("<Control-o>", lambda event: abrir(False))
 root.bind("<Control-O>", lambda event: abrir(False))
+root.bind("<Control-m>", lambda event: mid_export())
+root.bind("<Control-M>", lambda event: mid_export())
 
 
 #Ritmos samples
@@ -765,13 +808,24 @@ root.bind(".", lambda event: teclado(9))
 root.bind("-", lambda event: teclado(10))
 
 
-if ruta != None:
+#si desde windows abres el proyecto
+#con el programa sale esta ruta
+try:
+    global ruta
+    ruta = desde_sys[1]
     abrir(True)
+except IndexError:
+    ruta = None
 
+msj_br = Thread(target=random_brick)
+msj_br.start()
+
+my_thread = Thread(target=cpu)
+my_thread.start()
 
 inicio.play()
 root.mainloop()
+final.play()
 activador = False
 mostrar_mensaje = False
-msj_br.join()
-final.play()
+var_cpu = False
