@@ -6,19 +6,26 @@ by @Brick_Briceno 2023
 #Librerias uwu
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
 from tkinter import filedialog as FileDialog
 from threading import Thread
 import random
 import numpy as np
 import time
 from pygame import mixer
-import pyaudio
 import psutil
 import midiutil
 from webbrowser import open as open_link
 from sys import argv as desde_sys
+import os
 
 titulo_ventana = "Symmetry Melody v1.0"
+
+def notificacion(titulo, msj):
+    root_msj = tk.Tk()
+    root_msj.withdraw()
+    messagebox.showinfo(msj, titulo)
+
 
 "Sistema de Guardado"
 
@@ -78,7 +85,9 @@ def abrir(externo):
     octava_a_anadir = int(cosas[3])
     actualizar_barra(None)
     Piano_Roll = str_bi_a_list(hex_a_bi(cosas[4]))
+    root.title(titulo_ventana + " " + ruta)
     actualizar_botones()
+    
 
 
 def guardar():
@@ -105,10 +114,10 @@ def guardar_como():
                       str(octava_a_anadir)  + "," +
                       bi_a_hex(list_a_str_bi(Piano_Roll)))
     fichero.close()
-    root.title(titulo_ventana + fichero.name)
+    root.title(titulo_ventana + " " + ruta)
 
 def mid_export():
-    fichero = FileDialog.asksaveasfile(title="Guardar Proyecto", 
+    fichero = FileDialog.asksaveasfile(title="Exportar .Mid", 
         mode="w", defaultextension=".mid")
     if fichero == None:
         return
@@ -125,10 +134,10 @@ def mid_export():
                     octava_anadir += 1
                     grado -= 7
                 else:
-                    note = ((octava_anadir)*12)+escalas_list[tipo_escala_n][grado-1]+tono_de_escala-13
+                    note = ((octava_anadir)*12)+escalas_list[tipo_escala_n][grado-1]+tono_de_escala-13+(7*4)
                 #print(0, 0, note, corchea, 1, 100)
                 mf.addNote(0, 0, note, corchea/4, .25, 100)
-    
+
     # Exportación del archivo MIDI
     with open(fichero.name, "wb") as output_file:
         mf.writeFile(output_file)
@@ -162,16 +171,20 @@ def cambiar_color_e_indice(indice):
     else:
         Piano_Roll[indice] = 1
         buttons_c1[indice].configure(bg=color_boton)
-        seno = Thread(target=reproducir_seno, args=(
-            volumen, 30/tempo, Tono_a_Hz(
-            tono_y_corchea_desde_indice(indice)[0],
-            escalas_list[tipo_escala_n], tono_de_escala, octava_a_anadir)))
-        seno.start()
+        Thread(target=tocar_nota, args=(tipo_instrumento,
+                tono_y_corchea_desde_indice(indice)[0]-1+7*(octava_a_anadir-2))).start()
 
-def pulso_boton(indice, lalala):
+
+def pulso_boton(indice, color):#si el color NO es None, será negro
     buttons_c1[indice].configure(bg=color_boton_pulso)
     time.sleep(55/tempo)
-    buttons_c1[indice].configure(bg=color_boton)
+    if not color or Piano_Roll[indice]:
+        buttons_c1[indice].configure(bg=color_boton)
+    elif not ((34 - (indice // 64))%7):
+            buttons_c1[indice].configure(bg=color_tonica)
+    else:
+        buttons_c1[indice].configure(bg="black")
+
 
 def harmonia_negativa_diatonica():
    global Piano_Roll
@@ -229,7 +242,7 @@ def GeneradorBrick_v2(a, b, c):
     if a == 0:
         return [0 for i in range(c)]
 
-    pattern = []    
+    pattern = []
     counts = []
     remainders = []
     divisor = b - a
@@ -331,27 +344,90 @@ def mover_ritmo_derecha(lista_a_mover):
 
 """Reproductor de Melodias y Ritmos"""
 
-def teclado(grado):
-    seno = Thread(target=reproducir_seno, args=(volumen, .5, Tono_a_Hz(grado, escalas_list[tipo_escala_n], tono_de_escala, 1+octava_a_anadir)))
-    seno.start()
+def teclado(grado):#la variable grado2 es para que al cambiar la octava
+    grado2 = grado-1+(7*octava_a_anadir)#no cambie tambien donde brillan los botones
+    Thread(target=tocar_nota, args=(tipo_instrumento, grado2)).start()
+    Thread(target=pulso_boton, args=(posicion_lista(grado+13, 0), True)).start()
 
-def reproducir_seno(amplitud, duracion, frecuencia):
-    # Generamos la onda senoidal
-    num_muestras = int(duracion * frecuencia_muestreo)
-    t = np.linspace(0, duracion, num_muestras)
-    onda = amplitud * np.sin(2 * np.pi * frecuencia * t)
 
-    # Creamos un objeto PyAudio para reproducir el sonido
-    py_audio = pyaudio.PyAudio()
-    
-    # Creamos un stream de audio
-    stream = py_audio.open(format=pyaudio.paFloat32,
-                           channels=1,
-                           rate=frecuencia_muestreo,
-                           output=True)
+"""Instrumentos"""
 
-    # Reproducimos la onda senoidal
-    stream.write(onda.astype(np.float32).tobytes())
+ruta_instrumentos = "Librerias"
+
+instrumentos = []
+
+def names_carpetas(ruta):
+    carpetas = []
+    for nombre in os.listdir(ruta):
+        if os.path.isdir(os.path.join(ruta, nombre)):
+            carpetas.append(nombre)
+    return carpetas
+
+def names_archivos(ruta):
+    nombres = []
+    for nombre in os.listdir(ruta):
+        nombres.append(nombre)
+    return nombres
+
+nombre_de_instrumentos = names_carpetas(ruta_instrumentos)
+
+for x in range(len(nombre_de_instrumentos)):
+    instrumentos.append([y for y in range(97)])
+    Ruta_del_Notas = ruta_instrumentos +"/"+ nombre_de_instrumentos[x]
+    for y in range(97):
+        #nota_instru = mixer.Sound
+        try:
+            instrumentos[x][y] = Ruta_del_Notas +"/"+ names_archivos(Ruta_del_Notas)[y]#notas, 25.wav, etc
+        except:
+            instrumentos[x][y] = None
+
+
+for i in range(len(nombre_de_instrumentos)):
+    try:
+        if "#" in nombre_de_instrumentos[i]:
+            nombre_de_instrumentos.pop(i)
+            instrumentos.pop(i)
+    except:
+        break
+
+ejecutar_notas = []
+
+for x in range(len(nombre_de_instrumentos)):
+    ejecutar_notas.append([])
+    for y in range(97):
+        if instrumentos[x][y] != None:
+            #print(instrumentos[x][y])
+            try:
+                sample = mixer.Sound(instrumentos[x][y])
+            except:
+                notificacion(instrumentos[x][y] +
+                             " No es un formato de Archivo compatible, Use librerias en formato .mp3, .ogg o preferiblmente .wav",
+                             "Error :(")
+                quit()
+
+            ejecutar_notas[x].append(sample)
+        else:
+            ejecutar_notas[x].append(None)
+
+def tocar_nota(instrumento, nota):
+    global octava_a_anadir
+    octava = octava_a_anadir
+    grado = nota + 1
+    while grado > 7:
+        octava += 1
+        grado -= 7
+    else:
+        nota = ((octava)*12)+escalas_list[tipo_escala_n][grado-1]+tono_de_escala-13
+        print(nota)
+    try:
+        ejecutar_notas[instrumento][nota].play()
+    except: None
+
+
+def cambiar_instrumento(inst):
+    global tipo_instrumento
+    tipo_instrumento = inst
+
 
 notas_octava_0={"C": 16.35, "C#": 17.32, "D": 18.35,
                 "D#": 19.45, "E": 20.6, "F": 21.83,
@@ -390,7 +466,7 @@ escalas_list = [mayor, menor, menor_melodico,
 #octava es la octava a añadir
 #3 es la octava que se suma por defecto
 
-def Tono_a_Hz(tono, escala, tono_de_escala, octava):
+def Tono_a_Hz(tono, tono_de_escala, octava):
     octava_anadir = 2
     grado = tono
     while grado > 7:
@@ -419,10 +495,10 @@ tempo = 128
 activador = False
 tipo_escala_n = 0
 tono_de_escala = 5
-octava_a_anadir = 0
+octava_a_anadir = 2
+tipo_instrumento = 0
 #volumen maximo 1 y minimmo 0, 50% = 0.5
 volumen = 1
-
 
 def nuevo_p():
     global tipo_escala_n
@@ -433,7 +509,7 @@ def nuevo_p():
     Piano_Roll = [0 for x in range(35*64)]
     tipo_escala_n = 0
     tono_de_escala = 5
-    octava_a_anadir = 0
+    octava_a_anadir = 4
     ruta = None
     actualizar_barra(None)
     actualizar_botones()
@@ -448,16 +524,9 @@ def reproductor():
         #Melodia
         for tono in range(35):
             if Piano_Roll[posicion_lista(tono, corchea)]:
-                print(tono)
-                seno = Thread(target=reproducir_seno,
-                            args=(volumen, 15/tempo,
-                            Tono_a_Hz(tono+1, escalas_list[tipo_escala_n],
-                            tono_de_escala,
-                            octava_a_anadir)))
-                seno.start()
+                Thread(target=tocar_nota, args=(tipo_instrumento, tono+(7*(octava_a_anadir-2)))).start()
                 #pulso del boton
-                pulso_f = Thread(target=pulso_boton, args=(posicion_lista(tono, corchea), None))
-                pulso_f.start()
+                Thread(target=pulso_boton, args=(posicion_lista(tono, corchea), None)).start()
 
         #Claqueta
         if claqueta_activada and (corchea in [x*4 for x in range(16)]):
@@ -561,7 +630,9 @@ mensajes_ramdon_brick = ("Con la tecla ¨T¨ puedes marcar el tempo :)",
                          "Los momentos de ispiración llegan cuando estás en el baño, Brick Briceño - 2020",
                          "Puedes usar tecnicas como la harmonia negativa o cambiar el ritmo de una melodia ;D",
                          "Buscame en redes como @Brick_briceno ;)",
-                         "Aveces un pequeño detalle le da vida a Toda la canción...")
+                         "Aveces un pequeño detalle le da vida a Toda la canción...",
+                         "La musica nos lleva a otros mundos que solo están en muestra imaginacíon",
+                         "las notas agudas se suelen usar para imprecionar, dependiendo del caso claro")
 
 mostrar_mensaje = True
 def random_brick():
@@ -750,6 +821,16 @@ escalas_menu.config(bg="black", fg="snow")
 
 menu_bar.add_cascade(label="Escalas", menu=escalas_menu)
 
+#Instrumentos Menú
+
+instrumentos_menu = tk.Menu(menu_bar, tearoff=0)
+
+for x in range(len(nombre_de_instrumentos)):
+    instrumentos_menu.add_command(label=nombre_de_instrumentos[x], command=lambda arg=x: cambiar_instrumento(arg))
+
+instrumentos_menu.config(bg="black", fg="snow")
+menu_bar.add_cascade(label="Instrumentos :)", menu=instrumentos_menu)
+
 ayuda_menu = tk.Menu(menu_bar, tearoff=0)
 ayuda_menu.add_command(label="Ayuda")
 ayuda_menu.add_command(label="Dame un Cafe <3", command=cafe)
@@ -778,6 +859,8 @@ root.bind("<Control-o>", lambda event: abrir(False))
 root.bind("<Control-O>", lambda event: abrir(False))
 root.bind("<Control-m>", lambda event: mid_export())
 root.bind("<Control-M>", lambda event: mid_export())
+root.bind("n", lambda event: harmonia_negativa_diatonica())
+root.bind("N", lambda event: harmonia_negativa_diatonica())
 
 
 #Ritmos samples
