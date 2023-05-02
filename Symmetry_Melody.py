@@ -19,7 +19,7 @@ from webbrowser import open as open_link
 from sys import argv as desde_sys
 import os
 
-titulo_ventana = "Symmetry Melody v1.0"
+titulo_ventana = "Symmetry Melody v1.0 by @Brick_briceno"
 
 def notificacion(titulo, msj):
     root_msj = tk.Tk()
@@ -418,7 +418,7 @@ def tocar_nota(instrumento, nota):
         grado -= 7
     else:
         nota = ((octava)*12)+escalas_list[tipo_escala_n][grado-1]+tono_de_escala-13
-        print(nota)
+        #print(nota)
     try:
         ejecutar_notas[instrumento][nota].play()
     except: None
@@ -609,8 +609,8 @@ def tempo_calc():
     LastPulseTime = CurrentTime
     tempo = sum(bpm_media)/len(bpm_media)
     tempo = round(tempo)
-    print(bpm_media)
-    print(tempo)
+    #print(bpm_media)
+    #print(tempo)
     actualizar_barra(None)
     if bpm < 45:
         LastPulseTime = 0
@@ -676,7 +676,7 @@ def cafe():
 """Interfaz"""
 
 root = tk.Tk()
-root.geometry("1024x560") # Establecer el tamaño de la ventana
+root.geometry("1024x560")# Establecer el tamaño de la ventana
 root.title(titulo_ventana)
 root.iconbitmap("icon.ico")
 root.resizable(0, 0)
@@ -832,7 +832,7 @@ instrumentos_menu.config(bg="black", fg="snow")
 menu_bar.add_cascade(label="Instrumentos :)", menu=instrumentos_menu)
 
 ayuda_menu = tk.Menu(menu_bar, tearoff=0)
-ayuda_menu.add_command(label="Ayuda")
+ayuda_menu.add_command(label="Ayuda", command=lambda arg1="Hola!!!", arg2="Pronto versión 2": notificacion(arg1, arg2))
 ayuda_menu.add_command(label="Dame un Cafe <3", command=cafe)
 ayuda_menu.config(bg="black", fg="snow")
 
